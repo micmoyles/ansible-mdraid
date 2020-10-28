@@ -1,0 +1,9 @@
+- name: Install tasks
+  include: install.yml
+
+- name: Configure arrays
+  include: build_array.yml
+  loop: "{{ raid_arrays }}"
+  loop_control:
+    loop_var: array
+  when: raid_arrays | length > 0

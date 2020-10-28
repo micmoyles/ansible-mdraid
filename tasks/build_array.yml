@@ -1,0 +1,76 @@
+- set_fact:
+    skip_array: False
+
+- name: Fail if the specified devices do not exist on the host
+  stat:
+    path: "{{ item }}"
+  register: rc
+  failed_when: rc.stat.exists == False
+  with_items: "{{ array.disks }}"
+
+- set_fact:
+     device_array: "{{ array.disks + [array.device]}}"
+
+- name: Validate Current State
+  include: validate.yml
+  with_items:
+    - "{{ device_array }}"
+  loop_control:
+    loop_var: disk
+
+- when: not skip_array
+  block:
+  - name: Create arrays
+    shell:  "yes | mdadm --create {{ array.device }} --level={{ array.level }} --raid-devices={{ array.disks | count }} {{ array.disks | join(' ') }}"
+    check_mode: no
+
+  - name: Register mdadm scan output to save md state across reboots
+    command: "mdadm --detail --scan"
+    register: mdadm_detail_scan
+
+  - name: Create filesystem
+    filesystem:
+      fstype: "{{ array.filesystem | default(raid_default_filesystem) }}"
+      opts: "{{ array.filesystem_opts | default(omit) }}"
+      dev: "{{ array.device }}"
+
+  - name: Ensure mountpoint exists
+    file:
+      path: "{{ array.mountpoint }}"
+      state: directory
+      owner: "{{ array.owner | default('root') }}"
+      group: "{{ array.group | default('root') }}"
+      mode:  "{{ array.mode  | default('0644') }}"
+
+  - name: Mount device
+    mount:
+      name: "{{ array.mountpoint }}"
+      src: "{{ array.device }}"
+      state: mounted
+      opts: "{{ array.filesystem_opts | default(omit) }}"
+      fstype: "{{ array.filesystem | default(raid_default_filesystem) }}"
+
+  - name: Append fstab
+    lineinfile:
+      dest: /etc/fstab
+      insertafter: EOF
+      line: "{{ array.device }} {{ array.mountpoint }} {{ array.filesystem | default(raid_default_filesystem) }} defaults 0 0"
+      state: "{{ array.state | default('present') }}"
+
+  - name: Ensure configs exist in mdadm.conf
+    file:
+      path: "{{ mdadm_conf_path }}"
+      state: touch
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: Save state
+    lineinfile:
+      dest: "{{ mdadm_conf_path }}"
+      regexp: "^{{ mdadm_detail_scan.stdout_lines }}"
+      line: "{{ mdadm_detail_scan.stdout }}"
+      state: "{{ array.state | default('present') }}"
+
+
+

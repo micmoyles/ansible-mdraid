@@ -1,0 +1,13 @@
+## Check if the device is part of an array, if it is then set skip_array to True
+- name: Print given value
+  debug:
+    msg: "{{ disk }}"
+- name: Check if the specified devices are part of an existing array
+  shell: "disk=$( echo {{ disk }} | sed 's#/dev/##g' ); cat /proc/mdstat | grep $disk"
+  register: md_disk_active
+  ignore_errors: true ## can ignore errors so this doesn't fail when the device is not part of an array 
+
+- name: Add element to array to determine further action
+  set_fact:
+    skip_array: True
+  when: md_disk_active.rc == 0
