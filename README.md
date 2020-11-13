@@ -15,11 +15,14 @@ Any disks passed through role variables must be present, the role will deliberat
 ## Example Raid Array
 ```yaml
 raid_arrays:
-  - device: /dev/md0 (raid device to create)
-    disks: (list of disks to add to the array)
+  - device: /dev/md0 (req. raid device to create)
+    disks: (req. list of disks to add to the array)
       - /dev/sdb
       - /dev/sdc
-    level: 1 (Raid level, supports anything mdadm supports)
-    filesystem: xfs (filesystem to create on the device)
-    mountpoint: /mnt/raid (where to mount it)
+    level: 1 (req. Raid level, supports anything mdadm supports)
+    layout: fX (opt. no default)
+    filesystem: xfs (opt. def xfs filesystem to create on the device)
+    filesystem_opts: (opt. default omit)
+    mountpoint: /mnt/raid (req. where to mount it)
+    mount_opts: (opt. default omit)
 ```
